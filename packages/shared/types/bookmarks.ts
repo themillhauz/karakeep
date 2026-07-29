@@ -5,6 +5,8 @@ import { zCursorV2 } from "./pagination";
 import { zAttachedByEnumSchema, zBookmarkTagSchema } from "./tags";
 
 export const MAX_BOOKMARK_TITLE_LENGTH = 1000;
+export const DEFAULT_READABLE_CONTENT_MAX_CHARS = 12_000;
+export const MAX_READABLE_CONTENT_MAX_CHARS = 50_000;
 
 // Zod's url() accepts any scheme (javascript:, data:, ...), so restrict
 // bookmark links to schemes that are safe to reflect in exports and feeds.
@@ -21,6 +23,29 @@ export const enum BookmarkTypes {
   ASSET = "asset",
   UNKNOWN = "unknown",
 }
+
+export const zBookmarkReadableContentFormatSchema = z.enum([
+  "markdown",
+  "text",
+]);
+export type ZBookmarkReadableContentFormat = z.infer<
+  typeof zBookmarkReadableContentFormatSchema
+>;
+
+export const zBookmarkReadableContentSchema = z.object({
+  bookmarkId: z.string(),
+  bookmarkType: z.enum([
+    BookmarkTypes.LINK,
+    BookmarkTypes.TEXT,
+    BookmarkTypes.ASSET,
+  ]),
+  format: zBookmarkReadableContentFormatSchema,
+  content: z.string(),
+  contentVersion: z.string(),
+});
+export type ZBookmarkReadableContent = z.infer<
+  typeof zBookmarkReadableContentSchema
+>;
 
 export const zSortOrder = z.enum(["asc", "desc", "relevance"]);
 export type ZSortOrder = z.infer<typeof zSortOrder>;
@@ -111,6 +136,8 @@ export type ZBookmarkSource = z.infer<typeof zBookmarkSourceSchema>;
 
 export const zBareBookmarkSchema = z.object({
   id: z.string(),
+  // This is optional for backwards compatibility
+  firstCreatedAt: z.date().optional(),
   createdAt: z.date(),
   modifiedAt: z.date().nullable(),
   title: z.string().nullish(),
@@ -282,11 +309,14 @@ export const zSearchBookmarksCursor = z.discriminatedUnion("ver", [
     offset: z.number(),
   }),
 ]);
+export const zBookmarkSearchMode = z.enum(["fts", "semantic", "hybrid"]);
+export type ZBookmarkSearchMode = z.infer<typeof zBookmarkSearchMode>;
 export const zSearchBookmarksRequestSchema = z.object({
   text: z.string(),
   limit: z.number().max(MAX_NUM_BOOKMARKS_PER_PAGE).optional(),
   cursor: zSearchBookmarksCursor.nullish(),
   sortOrder: zSortOrder.optional().default("relevance"),
+  searchMode: zBookmarkSearchMode.optional().default("fts"),
   includeContent: z.boolean().optional().default(false),
 });
 
